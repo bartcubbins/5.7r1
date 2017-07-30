@@ -3406,7 +3406,7 @@ static int cyttsp4_core_resume(struct device *dev)
 
 static const struct dev_pm_ops cyttsp4_core_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(cyttsp4_core_suspend, cyttsp4_core_resume)
-	SET_RUNTIME_PM_OPS(cyttsp4_core_rt_suspend, cyttsp4_core_rt_resume,
+	SET_RUNTIME_PM_OPS(cyttsp4_core_suspend, cyttsp4_core_resume,
 			NULL)
 };
 

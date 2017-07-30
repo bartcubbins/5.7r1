@@ -4663,7 +4663,7 @@ static int cyttsp5_pm_notifier(struct notifier_block *nb,
 
 const struct dev_pm_ops cyttsp5_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(cyttsp5_core_suspend, cyttsp5_core_resume)
-	SET_RUNTIME_PM_OPS(cyttsp5_core_rt_suspend, cyttsp5_core_rt_resume,
+	SET_RUNTIME_PM_OPS(cyttsp5_core_suspend, cyttsp5_core_resume,
 			NULL)
 };
 EXPORT_SYMBOL_GPL(cyttsp5_pm_ops);
