@@ -953,7 +953,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-
+extcon = <&smb1360_otg_supply>;
 		interrupts = <0 134 0>,<0 140 0>;
 		interrupt-names = "core_irq", "async_irq";
 

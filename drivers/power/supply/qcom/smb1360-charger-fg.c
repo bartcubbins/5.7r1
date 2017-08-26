@@ -30,6 +30,7 @@
 #include <linux/qpnp/qpnp-adc.h>
 #include <linux/completion.h>
 #include <linux/pm_wakeup.h>
+#include <linux/extcon.h>
 
 #ifdef CONFIG_MACH_SONY_TULIP
 #include <soc/qcom/smem.h>
@@ -394,6 +395,12 @@ struct smb1360_wakeup_source {
 	spinlock_t ws_lock;
 };
 
+static const unsigned int smb1360_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
+};
+
 struct smb1360_chip {
 	struct i2c_client		*client;
 	struct device			*dev;
@@ -409,6 +416,8 @@ struct smb1360_chip {
 
 	/* wakeup source */
 	struct smb1360_wakeup_source	smb1360_ws;
+
+struct extcon_dev	*extcon;
 
 	/* configuration data - charger */
 	int				fake_battery_soc;
@@ -2674,9 +2683,12 @@ static int tulip_usbin_uv_handler(struct smb1360_chip *chip, u8 rt_stat)
 		/* USB removed */
 		check_unplug_wakelock(chip);
 		pval.intval = chip->usb_present;
+		extcon_set_cable_state_(chip->extcon, EXTCON_USB_HOST, chip->usb_present);
+		extcon_set_cable_state_(chip->extcon, EXTCON_USB, chip->usb_present);
 		power_supply_set_property(chip->usb_psy,
 						POWER_SUPPLY_PROP_PRESENT,
 						&pval);
+		power_supply_changed(chip->usb_psy);
 		rc = smb1360_float_voltage_set(chip, chip->vfloat_mv);
 		if (rc)
 			pr_err("Couldn't set float voltage rc = %d\n", rc);
@@ -2687,9 +2699,12 @@ static int tulip_usbin_uv_handler(struct smb1360_chip *chip, u8 rt_stat)
 		/* USB inserted */
 		chip->usb_present = usb_present;
 		pval.intval = chip->usb_present;
+		extcon_set_cable_state_(chip->extcon, EXTCON_USB_HOST, chip->usb_present);
+		extcon_set_cable_state_(chip->extcon, EXTCON_USB, chip->usb_present);
 		power_supply_set_property(chip->usb_psy,
 						POWER_SUPPLY_PROP_PRESENT,
 						&pval);
+		power_supply_changed(chip->usb_psy);
 		pm_stay_awake(chip->dev);
 	}
 
@@ -3786,7 +3801,6 @@ static int smb1360_regulator_init(struct smb1360_chip *chip)
 	int rc = 0;
 	struct regulator_init_data *init_data;
 	struct regulator_config cfg = {};
-pr_info("---------------REGULATOR PROBE BEGIN------------------\n");
 	init_data = of_get_regulator_init_data(chip->dev, chip->dev->of_node, NULL);
 	if (!init_data) {
 		dev_err(chip->dev, "Unable to allocate memory\n");
@@ -5656,6 +5670,19 @@ static int smb1360_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Unable to register batt_psy rc = %ld\n",
 						PTR_ERR(chip->batt_psy));
 		goto fail_hw_init;
+	}
+
+	chip->extcon = devm_extcon_dev_allocate(chip->dev, smb1360_extcon_cable);
+	if (IS_ERR(chip->extcon)) {
+		dev_err(chip->dev, "failed to allocate extcon device\n");
+		rc = PTR_ERR(chip->extcon);
+		//goto votables_cleanup;
+	}
+
+	rc = devm_extcon_dev_register(chip->dev, chip->extcon);
+	if (rc) {
+		dev_err(chip->dev, "failed to register extcon device\n");
+		//goto votables_cleanup;
 	}
 
 	/* STAT irq configuration */
